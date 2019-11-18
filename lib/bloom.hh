@@ -5,6 +5,7 @@
 #include "MurmurHash3.h"
 #include <vector>
 #include <utility>
+#include <cmath>
 
 
 class BloomFilter {

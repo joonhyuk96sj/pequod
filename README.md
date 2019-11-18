@@ -26,8 +26,9 @@ Pequod builds on Linux and Mac OSX. To build:
     $ ./configure
     $ make
 
-@@@ 1. lib/bloom.hh -> add "cmath" library
-@@@ 2. GNUmakefile 241 line -> link "lpthread" dynamic library
+    $ NOTE
+    $ 1. lib/bloom.hh -> add "cmath" library
+    $ 2. GNUmakefile 241 line -> link "lpthread" dynamic library
 
 Pequod requires a C++11 compatible compiler, and the Apple-supplied compiler might
 not be suitable for building on OSX. To use an alternate compiler (such as one 

@@ -13,6 +13,9 @@
 namespace pq {
 class Server;
 
+// [Log generation]
+// TODO: Implement Dummy class that prints log of each functions
+ 
 class PersistentStore {
   public:
     typedef std::pair<String,String> Result;

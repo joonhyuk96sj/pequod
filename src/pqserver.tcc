@@ -206,6 +206,7 @@ tamed void Table::insert(Str key, String value, tamer::event<> done) {
     else if (unlikely(server_->writethrough() && server_->is_owned_public(owner)))
         twait { server_->persistent_store()->put(key, value, make_event()); }
 
+    // [Log Generation Point] Put
     insert(key, value);
     done();
 }
@@ -218,11 +219,11 @@ void Table::insert(Str key, String value) {
     auto p = store_.insert_check(key, KeyCompare(), cd);
     Datum* d;
     if (p.second) {
-	d = new Datum(key, value);
+	    d = new Datum(key, value);
         value = String();
-	store_.insert_commit(*d, cd);
+	    store_.insert_commit(*d, cd);
     } else {
-	d = p.first.operator->();
+	    d = p.first.operator->();
         d->value().swap(value);
     }
 
@@ -242,6 +243,7 @@ tamed void Table::erase(Str key, tamer::event<> done) {
     else if (unlikely(server_->writethrough() && server_->is_owned_public(owner)))
         twait { server_->persistent_store()->erase(key, make_event()); }
 
+    // [Log Generation Point] Delete(erase)   
     erase(key);
     done();
 }

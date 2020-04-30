@@ -230,6 +230,7 @@ void TwitterNewPopulator::import_subscriptions(generator_type& gen,
     assert(graph.is_open() && "Could not open twitter social graph.");
 
     graph >> nusers_;
+    std::cout << "nusers:" << nusers_ << '\n';
     make_users();
 
     while(graph.good()) {

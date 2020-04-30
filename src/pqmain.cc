@@ -64,6 +64,7 @@ static Clp_Option options[] = {
     { "dbhost", 0, 3017, Clp_ValString, 0 },
     { "dbport", 0, 3018, Clp_ValInt, 0 },
     { "dbpool-min", 0, 3019, Clp_ValInt, 0 },
+    { "dbpool-max", 0, 3020, Clp_ValInt, 0 },
     { "outpath", 0, 3036, Clp_ValString, 0 },
     { "dbpool-depth", 0, 3021, Clp_ValInt, 0 },
     { "postgres", 0, 3022, 0, Clp_Negate },
@@ -220,6 +221,8 @@ int main(int argc, char** argv) {
             tp_param.set("populate", !clp->negated);
         else if (clp->option->long_name == String("execute"))
             tp_param.set("execute", !clp->negated);
+
+        // db_param 
         else if (clp->option->long_name == String("dbname"))
             db_param.dbname = clp->val.s;
         else if (clp->option->long_name == String("dbhost"))
@@ -236,6 +239,7 @@ int main(int argc, char** argv) {
             db = db_postgres;
         else if (clp->option->long_name == String("monitordb"))
             monitordb = !clp->negated;
+
         else if (clp->option->long_name == String("mem-lo"))
             mem_lo_mb = clp->val.i;
         else if (clp->option->long_name == String("mem-hi"))

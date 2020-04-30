@@ -3,6 +3,14 @@
 
 namespace pq {
 
+#if HAVE_LIBLEVELDB
+
+LevelDBStore::LevelDBStore(const DBPoolParams& params)
+    : params_(params), pool_(nullptr) {
+}
+
+#endif 
+
 #if HAVE_LIBPQ
 
 PostgresStore::PostgresStore(const DBPoolParams& params)

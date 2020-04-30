@@ -32,6 +32,28 @@ class PersistentStore {
     virtual void run_monitor(Server& server) = 0;
 };
 
+#if HAVE_LIBLEVELDB
+
+class LevelDBStore : public pq::PersistentStore {
+  public:
+    LevelDBStore(const DBPoolParams& params);
+    ~LevelDBStore();
+
+    tamed virtual void put(Str key, Str value, tamer::event<> done);
+    tamed virtual void erase(Str key, tamer::event<> done);
+    tamed virtual void get(Str key, tamer::event<String> done);
+    tamed virtual void scan(Str first, Str last, tamer::event<ResultSet> done);
+    virtual void flush();
+
+    virtual void run_monitor(Server& server);
+
+  private:
+
+    DBPoolParams params_;
+    DBPool* pool_;
+};
+
+#endif
 
 #if HAVE_LIBPQ
 

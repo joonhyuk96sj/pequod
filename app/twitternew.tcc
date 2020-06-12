@@ -147,14 +147,14 @@ uint32_t* TwitterNewPopulator::subscribe_probabilities(generator_type& gen) {
     uint32_t expected_subs = (min_subs_ + max_subs_) / 2;
     double* follow_shape = new double[nusers_];
     while (1) {
-	double shape_effect = 0;
-	for (uint32_t i = 0; i != nusers_; ++i) {
-	    double x = pow((double) (i + 1) / nusers_, shape_);
-	    follow_shape[i] = x;
-	    shape_effect += x;
-	}
+        double shape_effect = 0;
+        for (uint32_t i = 0; i != nusers_; ++i) {
+            double x = pow((double) (i + 1) / nusers_, shape_);
+            follow_shape[i] = x;
+            shape_effect += x;
+        }
         max_followers_ = (expected_subs - min_followers_) / (shape_effect / nusers_);
-	if (max_followers_ <= nusers_ / 4)
+        if (max_followers_ <= nusers_ / 4)
             break;
         // change shape, try again
         shape_ = shape_ * 0.7;
@@ -195,17 +195,17 @@ void TwitterNewPopulator::synthetic_subscriptions(generator_type& gen,
     rng_type rng(gen);
 
     for (uint32_t i = 0; i != nusers_; ++i) {
-	memset(subvec, 0, sizeof(uint32_t) * ((nusers_ + 31) / 32));
-	uint32_t nsubs = min_subs_ + rng(max_subs_ - min_subs_ + 1);
-	for (uint32_t j = 0; j != nsubs; ++j) {
-	    // pick follow
-	    uint32_t other;
-	    do {
-		other = std::upper_bound(sub_prob, sub_prob + nusers_, gen()) - sub_prob;
-	    } while (other == i || (subvec[other / 32] & (1U << (other % 32))));
+	    memset(subvec, 0, sizeof(uint32_t) * ((nusers_ + 31) / 32));
+	    uint32_t nsubs = min_subs_ + rng(max_subs_ - min_subs_ + 1);
+	    for (uint32_t j = 0; j != nsubs; ++j) {
+	        // pick follow
+	        uint32_t other;
+	        do {
+		        other = std::upper_bound(sub_prob, sub_prob + nusers_, gen()) - sub_prob;
+	        } while (other == i || (subvec[other / 32] & (1U << (other % 32))));
 
             ++users_[other]->nfollowers_;
-	    if (in_group(i))
+	        if (in_group(i))
                 subs.push_back(std::make_pair(i, other));
             subvec[other / 32] |= 1U << (other % 32);
 

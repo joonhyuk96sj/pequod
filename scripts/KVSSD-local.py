@@ -43,7 +43,7 @@ parser.add_option("-l", "--loaddb", action="store_true", dest="loaddb", default=
 parser.add_option("-r", "--ramfs", action="store", type="string", dest="ramfs", default="/mnt/tmp")
 (options, args) = parser.parse_args()
 
-maxcpus = 24
+maxcpus = 8
 expfile = options.expfile
 symlink = options.symlink
 killall = options.killall
@@ -145,9 +145,10 @@ def run_cmd_bg(cmd, outfile=None, errfile=None, sh=False):
     print("[run_cmd_bg]", cmd)
     logfd.write(cmd + "\n")
 
-    proc = Popen(cmd.split(), stdout=outfd, stderr=errfd, shell=sh)
-    #if platform.system() == 'Linux':
-        #subprocess.call("sudo sh -c 'echo -1000 > /proc/" + str(proc.pid) + "/oom_score_adj'", shell=True)
+    proc = Popen(cmd.split(), stderr=errfd, shell=sh)
+    #proc = Popen(cmd.split(), stdout=outfd, stderr=errfd, shell=sh)
+    if platform.system() == 'Linux':
+        subprocess.call("sudo sh -c 'echo -1000 > /proc/" + str(proc.pid) + "/oom_score_adj'", shell=True)
     return (proc, outfd, errfd)
 
 def run_cmd(cmd, outfile=None, errfile=None, sh=False):
@@ -230,7 +231,8 @@ def start_postgres(expdef, id, ncpus):
     if 'def_db_s_import' in expdef:
         cmd = "pg_restore -a -p %d -d %s -Fc %s" % (dbstartport + id, temp_db_name, expdef['def_db_s_import'])
         run_cmd(cmd, fartfile, fartfile)
-        
+
+    sys.stdout.flush()
     return proc
 
 # load experiment definitions as global 'exps'
@@ -238,6 +240,7 @@ print("[Experiment File]", expfile)
 exph = open(expfile, "r")
 exec(exph, globals())
 exph.close()
+sys.stdout.flush()
 
 for x in exps:
     expdir = None
@@ -256,8 +259,10 @@ for x in exps:
                 Popen("killall pqserver postgres memcached redis-server", shell=True).wait()
     
             print("\n\n--------------------------------------------------------------")
+            print("--------------------------------------------------------------")
             print("Running experiment" + ((" '" + expname + "'") if expname else "") + \
                   " in test '" + x['name'] + "'.")
+            sys.stdout.flush()
  
             (expdir, resdir) = prepare_experiment(x["name"], expname, str(rep) if repeat > 1 else "")
             logfd = open(os.path.join(resdir, "cmd_log.txt"), "w")
@@ -267,6 +272,8 @@ for x in exps:
                 run_cmd(e['def_build'], fartfile, fartfile, sh=True)
                  
             usedb = True if 'def_db_type' in e else False
+            rediscompare = e.get('def_redis_compare')
+            memcachecompare = e.get('def_memcache_compare')
             dbcompare = e.get('def_db_compare')
             dbmonitor = e.get('def_db_writearound')
             serverprocs = [] 
@@ -274,7 +281,7 @@ for x in exps:
             
             nservercpus = min(nprocesses, maxcpus - startcpu - ngroups)
 
-            if usedb:
+            if usedb or rediscompare:
                 dbenvpath = os.path.join(resdir, "store")
                 check_database_env(e)
                 os.makedirs(dbenvpath)
@@ -286,9 +293,26 @@ for x in exps:
                 if ncaching < 1:
                     print("ERROR: -c must be > 0 for DB comparison experiments")
                     exit(-1)
-                    
+                
+                print("dbcompare: Append DB process")
                 dbprocs.append(start_postgres(e, 0, ncaching))
                 
+            elif rediscompare:
+                if ncaching < 1:
+                    print("ERROR: -c must be > 0 for redis comparison experiments")
+                    exit(-1)
+                    
+                for s in range(ncaching):
+                    dbprocs.append(start_redis(e, s))
+                    
+            elif memcachecompare:
+                if ncaching < 1:
+                    print("ERROR: -c must be > 0 for memcache comparison experiments")
+                    exit(-1)
+                    
+                for s in range(ncaching):
+                    dbprocs.append(start_memcache(e, s))
+                    
             else:
                 if usedb:
                     dbhostpath = os.path.join(resdir, "dbhosts.txt")
@@ -312,7 +336,8 @@ for x in exps:
                             if dbmonitor:
                                 servercmd = servercmd + " --monitordb"
         
-                            dbfile.write(dbhost + "\t" + str(dbstartport + s) + "\n");
+                            dbfile.write(dbhost + "\t" + str(dbstartport + s) + "\n");                 
+                            print("no dbcompare: Append DB process")
                             dbprocs.append(start_postgres(e, s, 1))
         
                     part = options.part if options.part else e['def_part']
@@ -327,26 +352,28 @@ for x in exps:
             
                 if usedb:
                     dbfile.close()
-                    
+
+            sys.stdout.flush()
             print("\n") 
             print("----------- INFO ----------")
-            print("repeat     : ", repeat)
-            print("affinity   : ", affinity)
-            print("startcpu   : ", startcpu)
-            print("nservercpus: ", nservercpus)
-            print("nprocesses : ", nprocesses)
-            print("ngroups    : ", ngroups)
-            print("nbacking   : ", nbacking)
-            print("ncaching   : ", ncaching)
-            print("ndbs       : ", ndbs)
+            print("repeat         : ", repeat)
+            print("affinity       : ", affinity)
+            print("startcpu       : ", startcpu)
+            print("nservercpus    : ", nservercpus)
+            print("nprocesses     : ", nprocesses)
+            print("ngroups        : ", ngroups)
+            print("nbacking       : ", nbacking)
+            print("ncaching       : ", ncaching)
+            print("ndbs           : ", ndbs)
             print("--  --  --  --  --  --  --")
             print("usedb          :", usedb)
             print("dbcompare      :", dbcompare)
             print("--  --  --  --  --  --  --")
-            print("serverprocs:", len(serverprocs))
-            print("dbprocs    :", dbprocs)
+            print("serverprocs    :", len(serverprocs))
+            print("dbprocs        :", dbprocs)
             print("--------------------------")
             print("\n")
+            sys.stdout.flush()
             
             sleep(3)
     
@@ -357,7 +384,7 @@ for x in exps:
                 clientcpulist = ",".join([str(startcpu + nservercpus + c) for c in range(maxcpus - (startcpu + nservercpus))])
     
             if 'initcmd' in e:
-                print("Initializing cache servers.")
+                print("\nInitializing cache servers.")
                 initcmd = e['initcmd']
                 fartfile = os.path.join(resdir, "fart_init.txt")
                 
@@ -373,7 +400,7 @@ for x in exps:
                 run_cmd(full_cmd, fartfile, fartfile)
     
             if loaddb and dbmonitor and e['def_db_type'] == 'postgres':
-                print("Populating backend from database archive.")
+                print("\nPopulating backend from database archive.")
                 dbarchive = os.path.join("dumps", x["name"], e["name"], "nshard_" + str(ndbs))
                 procs = []
                 for s in range(ndbs):
@@ -385,7 +412,7 @@ for x in exps:
                     wait_for_proc(p)
                     
             elif 'populatecmd' in e:
-                print("Populating backend.")
+                print("\nPopulating backend.")
                 popcmd = e['populatecmd']
                 npop = 1 if e.get('def_single_pop') else ngroups
                         
@@ -449,8 +476,9 @@ for x in exps:
                            " -o " + os.path.join(resdir, "strace_" + str(straceserver) + ".dat")
                 dbgprocs.append(run_cmd_bg(full_cmd))
     
-    
+            print("\n\n--------------------------------------------------------------")
             print("Starting app clients.")
+            sys.stdout.flush()
             clientprocs = []
                         
             for c in range(ngroups):
@@ -485,6 +513,12 @@ for x in exps:
                 clientprocs.append(run_cmd_bg(full_cmd, outfile, fartfile));
                 
             # wait for clients to finish
+            print("client proc:", len(clientprocs))
+            print("server proc:",len(serverprocs))
+            print("db     proc:",len(dbprocs))
+            print("db g   proc:",len(dbgprocs))
+            sys.stdout.flush()
+
             for p in clientprocs:
                 wait_for_proc(p)
         
@@ -509,6 +543,7 @@ for x in exps:
     
             logfd.close()
             print("Done experiment. Results are stored at", resdir)
+            sys.stdout.flush()
     
     #if expdir and 'plot' in x:
         #make_gnuplots(x['name'], expdir, x['plot'], repeat)

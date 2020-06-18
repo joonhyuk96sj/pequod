@@ -125,6 +125,10 @@ struct Str : public String_base<Str> {
 	va_end(val);
 	return Str(buf, n);
     }
+    
+    void PrintHex() {
+        for (int i = 0; i < len; i++) printf("%c",s[i]);
+    }
 };
 
 struct inline_string : public String_base<inline_string> {

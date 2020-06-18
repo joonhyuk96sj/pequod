@@ -694,6 +694,7 @@ tamed void Table::fetch_remote(String first, String last, int32_t owner,
         Interconnect::scan_result res;
     }
 
+    std::cout << "[fetch_remote] called with [" << first << "," << last << ")\n"; // subscription log
     rr->add_waiting(done);
 
     for (Table* t = parent_; t; t = t->parent_)
@@ -709,8 +710,10 @@ tamed void Table::fetch_remote(String first, String last, int32_t owner,
     // std::cerr << "remote data fetch: " << rr->interval() << " returned "
     //          << res.size() << " results" << std::endl;
 
-    for (auto it = res.begin(); it != res.end(); ++it)
+    for (auto it = res.begin(); it != res.end(); ++it) {
+        std::cout << "[fetch_remote] "<< it->key() << "\n"; // subscription log
         server_->make_table_for(it->key()).insert(it->key(), it->value());
+    }
 
     server_->lru_touch(rr);
     rr->notify_waiting();

@@ -1,5 +1,6 @@
 #include "pqpersistent.hh"
 #include "pqserver.hh"
+#include <iostream>
 
 namespace pq {
 
@@ -15,12 +16,14 @@ LevelDBStore::LevelDBStore(const DBPoolParams& params)
 
 PostgresStore::PostgresStore(const DBPoolParams& params)
     : params_(params), pool_(nullptr), monitor_(nullptr) {
+    std::cout << "[DB] PostgresStore Construction " << "\n"; // DB log
 }
 
 PostgresStore::~PostgresStore() {
     delete pool_;
     if (monitor_)
         PQfinish(monitor_);
+    std::cout << "[DB] PostgresStore Destruction\n"; // DB log
 }
 
 void PostgresStore::connect() {
@@ -40,6 +43,7 @@ void PostgresStore::connect() {
 
     pool_ = new DBPool(params_);
     pool_->connect_all(statements);
+    std::cout << "[DB] PostgresStore Connect\n"; // DB log
 }
 
 tamed void PostgresStore::put(Str key, Str value, tamer::event<> done) {
@@ -49,6 +53,10 @@ tamed void PostgresStore::put(Str key, Str value, tamer::event<> done) {
     }
 
     twait { pool_->execute(q, make_event(j)); }
+
+    std::cout << "[DB] PUT " << id << " "; // DB log
+    key.PrintHex(); std::cout << " " << key.length() << " " << value.length() << '\n';
+    
     done();
 }
 
@@ -59,6 +67,10 @@ tamed void PostgresStore::erase(Str key, tamer::event<> done) {
     }
 
     twait { pool_->execute(q, make_event(j)); }
+
+    std::cout << "[DB] ERASE " << id << " "; // DB log
+    key.PrintHex(); std::cout << " " << key.length() << '\n';
+    
     done();
 }
 
@@ -69,6 +81,9 @@ tamed void PostgresStore::get(Str key, tamer::event<String> done) {
     }
 
     twait { pool_->execute(q, make_event(j)); }
+
+    std::cout << "[DB] GET " << id << " "; // DB log
+    key.PrintHex(); std::cout << " " << key.length() << '\n';
 
     if (j.is_a() && j.size() && j[0].size())
         done(j[0][0].as_s());
@@ -85,6 +100,10 @@ tamed void PostgresStore::scan(Str first, Str last, tamer::event<ResultSet> done
 
     twait { pool_->execute(q, make_event(j)); }
 
+    std::cout << "[DB] SCAN " << id << " "; // DB log
+    first.PrintHex(); std::cout << " " << first.length() << " ";
+    last.PrintHex();  std::cout << " " <<  last.length() << "\n";
+
     ResultSet& rs = done.result();
     for (auto it = j.abegin(); it < j.aend(); ++it )
         rs.push_back(Result((*it)[0].as_s(), (*it)[1].as_s()));
@@ -94,6 +113,7 @@ tamed void PostgresStore::scan(Str first, Str last, tamer::event<ResultSet> done
 
 void PostgresStore::flush() {
     pool_->flush();
+    std::cout << "[DB] FLUSH " << id << "\n"; // DB log
 }
 
 void PostgresStore::run_monitor(Server& server) {

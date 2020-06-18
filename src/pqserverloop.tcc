@@ -188,12 +188,14 @@ tamed void read_and_process_one(msgpack_fd* mpfd, pq::Server& server,
         break;
     case pq_notify_insert:
         key = j[2].as_s();
+        std::cout << "pq_notify_insert: " << key << std::endl; // subscription log
         server.table_for(key).insert(key, j[3].as_s());
         rj[2] = pq_ok;
         ++diff_.nnotify;
         break;
     case pq_notify_erase:
         key = j[2].as_s();
+        std::cout << "pq_notify_erase : " << key << std::endl; // subscription log
         server.table_for(key).erase(key);
         rj[2] = pq_ok;
         ++diff_.nnotify;

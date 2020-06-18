@@ -54,7 +54,7 @@ tamed void PostgresStore::put(Str key, Str value, tamer::event<> done) {
 
     twait { pool_->execute(q, make_event(j)); }
 
-    std::cout << "[DB] PUT " << id << " "; // DB log
+    std::cout << "[DB] PUT "; // DB log
     key.PrintHex(); std::cout << " " << key.length() << " " << value.length() << '\n';
     
     done();
@@ -68,7 +68,7 @@ tamed void PostgresStore::erase(Str key, tamer::event<> done) {
 
     twait { pool_->execute(q, make_event(j)); }
 
-    std::cout << "[DB] ERASE " << id << " "; // DB log
+    std::cout << "[DB] ERASE "; // DB log
     key.PrintHex(); std::cout << " " << key.length() << '\n';
     
     done();
@@ -82,7 +82,7 @@ tamed void PostgresStore::get(Str key, tamer::event<String> done) {
 
     twait { pool_->execute(q, make_event(j)); }
 
-    std::cout << "[DB] GET " << id << " "; // DB log
+    std::cout << "[DB] GET "; // DB log
     key.PrintHex(); std::cout << " " << key.length() << '\n';
 
     if (j.is_a() && j.size() && j[0].size())
@@ -100,7 +100,7 @@ tamed void PostgresStore::scan(Str first, Str last, tamer::event<ResultSet> done
 
     twait { pool_->execute(q, make_event(j)); }
 
-    std::cout << "[DB] SCAN " << id << " "; // DB log
+    std::cout << "[DB] SCAN "; // DB log
     first.PrintHex(); std::cout << " " << first.length() << " ";
     last.PrintHex();  std::cout << " " <<  last.length() << "\n";
 
@@ -113,7 +113,7 @@ tamed void PostgresStore::scan(Str first, Str last, tamer::event<ResultSet> done
 
 void PostgresStore::flush() {
     pool_->flush();
-    std::cout << "[DB] FLUSH " << id << "\n"; // DB log
+    std::cout << "[DB] FLUSH " << "\n"; // DB log
 }
 
 void PostgresStore::run_monitor(Server& server) {

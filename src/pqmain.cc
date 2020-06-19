@@ -84,6 +84,10 @@ static Clp_Option options[] = {
     { "outpath", 0, 3036, Clp_ValString, 0 },
     { "timeout", 0, 3037, Clp_ValInt, 0 },
 
+    // For Additional DB
+    { "dummydb", 0, 3038, 0, Clp_Negate },
+    { "kvsdb",   0, 3039, 0, Clp_Negate },
+
     // mostly twitter params
     { "shape", 0, 4000, Clp_ValDouble, 0 },
     { "popduration", 0, 4001, Clp_ValInt, 0 },
@@ -123,7 +127,7 @@ static Clp_Option options[] = {
 };
 
 enum { mode_unknown, mode_twitter, mode_twitternew, mode_hn, mode_listen, mode_tests };
-enum { db_unknown, db_postgres };
+enum { db_unknown, db_postgres, db_dummy, db_kvsdb };
 
 int main(int argc, char** argv) {
     tamer::initialize();
@@ -239,6 +243,12 @@ int main(int argc, char** argv) {
             db = db_postgres;
         else if (clp->option->long_name == String("monitordb"))
             monitordb = !clp->negated;
+
+        // Additional DB
+        else if (clp->option->long_name == String("dummydb"))
+            db = db_dummy;
+        else if (clp->option->long_name == String("kvsdb"))
+            db = db_kvsdb;
 
         else if (clp->option->long_name == String("mem-lo"))
             mem_lo_mb = clp->val.i;
@@ -358,6 +368,10 @@ int main(int argc, char** argv) {
 #else
             mandatory_assert(false && "Not configured for PostgreSQL.");
 #endif
+        }
+        else if (db == db_kvsdb) {
+            pq::KVSDBStore* kvsdb = new pq::KVSDBStore();
+            pstore = kvsdb;
         }
         else
             mandatory_assert(false && "Unknown DB type.");

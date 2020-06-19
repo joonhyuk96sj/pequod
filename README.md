@@ -29,6 +29,13 @@ Pequod builds on Linux and Mac OSX. To build:
     $ NOTE
     $ 1. lib/bloom.hh -> add "cmath" library
     $ 2. GNUmakefile 241 line -> link "lpthread" dynamic library
+    $ 3. GNUmakefile 
+         -> add "KVSDBGOAPI_PATH= (KVSSD-DB_PATH)/KVSDB/kvs_go_api"
+         -> Use the variable as below
+             -I$(KVSDBGOAPI_PATH) at INCLUDES
+             -L$(KVSDBGOAPI_PATH) at LDFLAGS
+         -> Link shared library
+             -lkvsgoapi at LIBS
 
 Pequod requires a C++11 compatible compiler, and the Apple-supplied compiler might
 not be suitable for building on OSX. To use an alternate compiler (such as one 

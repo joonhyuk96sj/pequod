@@ -10,11 +10,10 @@
 #include <libpq-fe.h>
 #endif
 
+#include "kvs_go_api.h"
+
 namespace pq {
 class Server;
-
-// [Log generation]
-// TODO: Implement Dummy class that prints log of each functions
  
 class PersistentStore {
   public:
@@ -30,6 +29,31 @@ class PersistentStore {
     virtual void flush() = 0;
 
     virtual void run_monitor(Server& server) = 0;
+};
+
+struct kvdata_ {
+    void*  ptr_key;
+    size_t klen;
+    void*  ptr_val;
+    size_t vlen;
+};
+typedef struct kvdata_ kvdata_entry;
+
+class KVSDBStore : public pq::PersistentStore {
+  public:
+    KVSDBStore();
+    ~KVSDBStore();
+
+    tamed virtual void put(Str key, Str value, tamer::event<> done);
+    tamed virtual void erase(Str key, tamer::event<> done);
+    tamed virtual void get(Str key, tamer::event<String> done);
+    tamed virtual void scan(Str first, Str last, tamer::event<ResultSet> done);
+    virtual void flush();
+
+    virtual void run_monitor(Server& server);
+    
+    KVSDB kvsdb;
+    void* gm;
 };
 
 #if HAVE_LIBLEVELDB

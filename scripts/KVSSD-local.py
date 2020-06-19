@@ -142,11 +142,11 @@ def run_cmd_bg(cmd, outfile=None, errfile=None, sh=False):
     else:
         errfd = None
     
-    print("[run_cmd_bg]", cmd)
     logfd.write(cmd + "\n")
+    print("[run_cmd_bg]", cmd.split())
 
-    proc = Popen(cmd.split(), stderr=errfd, shell=sh)
-    #proc = Popen(cmd.split(), stdout=outfd, stderr=errfd, shell=sh)
+    #proc = Popen(cmd.split(), stderr=errfd, shell=sh) # print log at stdout
+    proc = Popen(cmd.split(), stdout=outfd, stderr=errfd, shell=sh) #print log at each files
     if platform.system() == 'Linux':
         subprocess.call("sudo sh -c 'echo -1000 > /proc/" + str(proc.pid) + "/oom_score_adj'", shell=True)
     return (proc, outfd, errfd)
@@ -258,8 +258,7 @@ for x in exps:
             if killall:
                 Popen("killall pqserver postgres memcached redis-server", shell=True).wait()
     
-            print("\n\n--------------------------------------------------------------")
-            print("--------------------------------------------------------------")
+            print("\n=================================================================")
             print("Running experiment" + ((" '" + expname + "'") if expname else "") + \
                   " in test '" + x['name'] + "'.")
             sys.stdout.flush()
@@ -339,6 +338,12 @@ for x in exps:
                             dbfile.write(dbhost + "\t" + str(dbstartport + s) + "\n");                 
                             print("no dbcompare: Append DB process")
                             dbprocs.append(start_postgres(e, s, 1))
+                        elif e['def_db_type'] == 'dummy':
+                            servercmd = servercmd + " --dbname=dummydb --dummydb"
+                            print("no dbcompare: Use LogPrintDummyStore with index", s)
+                        elif e['def_db_type'] == 'kvsdb':
+                            servercmd = servercmd + " --dbname=kvsdb --kvsdb"
+                            print("no dbcompare: Use KVSDB with index", s)
         
                     part = options.part if options.part else e['def_part']
                     serverargs = " -H=" + hostpath + " -B=" + str(nbacking) + " -P=" + part
@@ -353,8 +358,7 @@ for x in exps:
                 if usedb:
                     dbfile.close()
 
-            sys.stdout.flush()
-            print("\n") 
+            print("\n=================================================================")
             print("----------- INFO ----------")
             print("repeat         : ", repeat)
             print("affinity       : ", affinity)
@@ -370,9 +374,8 @@ for x in exps:
             print("dbcompare      :", dbcompare)
             print("--  --  --  --  --  --  --")
             print("serverprocs    :", len(serverprocs))
-            print("dbprocs        :", dbprocs)
+            print("dbprocs        :", len(dbprocs))
             print("--------------------------")
-            print("\n")
             sys.stdout.flush()
             
             sleep(3)
@@ -384,7 +387,8 @@ for x in exps:
                 clientcpulist = ",".join([str(startcpu + nservercpus + c) for c in range(maxcpus - (startcpu + nservercpus))])
     
             if 'initcmd' in e:
-                print("\nInitializing cache servers.")
+                print("\n=================================================================")
+                print("[Initializing cache servers]")
                 initcmd = e['initcmd']
                 fartfile = os.path.join(resdir, "fart_init.txt")
                 
@@ -412,7 +416,8 @@ for x in exps:
                     wait_for_proc(p)
                     
             elif 'populatecmd' in e:
-                print("\nPopulating backend.")
+                print("\n=================================================================")
+                print("[Populating backend]")
                 popcmd = e['populatecmd']
                 npop = 1 if e.get('def_single_pop') else ngroups
                         
@@ -476,7 +481,7 @@ for x in exps:
                            " -o " + os.path.join(resdir, "strace_" + str(straceserver) + ".dat")
                 dbgprocs.append(run_cmd_bg(full_cmd))
     
-            print("\n\n--------------------------------------------------------------")
+            print("\n=================================================================")
             print("Starting app clients.")
             sys.stdout.flush()
             clientprocs = []
@@ -513,11 +518,12 @@ for x in exps:
                 clientprocs.append(run_cmd_bg(full_cmd, outfile, fartfile));
                 
             # wait for clients to finish
+            print("\n=================================================================")
+            print("Clear all the processes")
             print("client proc:", len(clientprocs))
-            print("server proc:",len(serverprocs))
-            print("db     proc:",len(dbprocs))
-            print("db g   proc:",len(dbgprocs))
-            sys.stdout.flush()
+            print("server proc:", len(serverprocs))
+            print("db     proc:", len(dbprocs))
+            print("db g   proc:", len(dbgprocs))
 
             for p in clientprocs:
                 wait_for_proc(p)

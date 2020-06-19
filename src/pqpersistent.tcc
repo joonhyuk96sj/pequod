@@ -2,7 +2,163 @@
 #include "pqserver.hh"
 #include <iostream>
 
+#include <assert.h>
+#include "kvs_go_api.h"
+
 namespace pq {
+
+#define Prefix_P 0x80000000
+
+static void* Complex2Simple(void* key, size_t len, size_t* len_simple) {
+    char* ptr = (char*)key;
+    char type = ptr[0];
+    if (type != 's' && type != 'p') return NULL;
+
+    char userid_char[9]; userid_char[8] = 0;
+    memcpy(userid_char, ptr+2, 8);
+    uint32_t userid_int = atoi(userid_char);
+    
+    if (type == 'p')
+        userid_int = userid_int | Prefix_P;
+    
+    char* newkey = (char*)malloc(len-6);
+    memcpy(newkey, &userid_int, 4);
+    memcpy(newkey+4, ptr+10, len-10);
+    *len_simple = len-6;
+    return newkey;
+}
+
+static void* Simple2Complex(void* key, size_t len, size_t* len_complex) {
+    size_t newkey_len = len + 6;
+    char* newkey = (char*)malloc(newkey_len);
+    char* ptr = (char*)key;
+    uint32_t target = *(uint32_t*)key;
+    
+    if (target & Prefix_P)
+        sprintf(newkey, "p|%08d", target & 0x7FFFFFFF);
+    else 
+        sprintf(newkey, "s|%08d", target & 0x7FFFFFFF); 
+       
+    memcpy(newkey+10, ptr+4, len-4);
+    *len_complex = newkey_len;
+    return newkey;
+}
+
+KVSDBStore::KVSDBStore() {
+    Kvsdb_create(&kvsdb, (char*)"KVSDBStore", 10);
+    std::cout << "[DB] KVSDBStore Construction\n"; // DB log
+}
+
+KVSDBStore::~KVSDBStore() {
+    Kvsdb_close(kvsdb);
+    std::cout << "[DB] KVSDBStore Destruction\n"; // DB log
+}
+
+tamed void KVSDBStore::put(Str key, Str value, tamer::event<> done) {
+    tvars {
+        size_t key_len = 0;
+        char*  key_ptr = (char*)Complex2Simple((char*)key.data(), key.length(), &key_len);
+        char*  val_ptr = (char*)value.data();
+        size_t val_len = value.length();
+    }
+    assert(key_ptr);
+    
+    twait { Kvsdb_put(kvsdb, key_ptr, key_len, val_ptr, val_len); }
+        
+    std::cout << "[DB] PUT ";   // DB log
+    key.PrintHex(); std::cout << " " << key.length() << " " << value.length() << '\n';
+    fflush(stdout); 
+
+    done();
+
+    free(key_ptr);
+}
+
+tamed void KVSDBStore::erase(Str key, tamer::event<> done) {
+    tvars {
+        size_t key_len = 0;
+        char*  key_ptr = (char*)Complex2Simple((char*)key.data(), key.length(), &key_len);
+    }
+    
+    twait { Kvsdb_del(kvsdb, key_ptr, key_len); }
+
+    std::cout << "[DB] ERASE "; // DB log
+    key.PrintHex(); std::cout << " " << key.length() << '\n';
+    fflush(stdout);
+
+    done();
+    
+    free(key_ptr);
+}
+
+tamed void KVSDBStore::get(Str key, tamer::event<String> done) {
+    tvars {
+        size_t key_len = 0;
+        char*  key_ptr = (char*)Complex2Simple((char*)key.data(), key.length(), &key_len);
+        char*  val_ptr = NULL;
+        size_t val_len = 0;
+    }
+    
+    twait { val_ptr = (char*)Kvsdb_get(kvsdb, key_ptr, (int)key_len, (int*)&val_len); }
+
+    std::cout << "[DB] GET "; // DB log
+    key.PrintHex(); std::cout << " " << key.length() << '\n';
+    fflush(stdout);
+
+    if (val_ptr)
+        done(String(val_ptr, val_len));
+    else
+        done("");
+        
+    free(key_ptr);
+}
+
+tamed void KVSDBStore::scan(Str first, Str last, tamer::event<ResultSet> done) {
+    tvars {
+        Iter kvsiter;
+        std::vector<kvdata_entry*>* result;
+        size_t key_first_len = 0;
+        char*  key_first_ptr = (char*)Complex2Simple((char*)first.data(), first.length(), &key_first_len);
+        size_t key_last_len  = 0;
+        char*  key_last_ptr  = (char*)Complex2Simple((char*)last.data(), last.length(), &key_last_len);
+    }
+
+    std::cout << "[DB] SCAN "; // DB log
+    first.PrintHex(); std::cout << " " << first.length() << " ";
+    last.PrintHex();  std::cout << " " <<  last.length() << "\n";
+    fflush(stdout);
+
+    twait { 
+        Kvsiter_create_with_range(kvsdb, &kvsiter, key_first_ptr, 0, key_first_ptr, key_first_len, key_last_ptr, key_last_len);    
+        result = (std::vector<kvdata_entry*>*)Kvsiter_readkey(kvsiter);
+    }
+    
+    ResultSet& rs = done.result();
+    char*  key_original = NULL;
+    size_t key_original_len = 0;
+
+    for (std::vector<kvdata_entry*>::iterator iter = result->begin(); iter != result->end(); iter++) {
+		kvdata_entry* e = *iter;
+        key_original = (char*)Simple2Complex((char*)e->ptr_key,e->klen, &key_original_len);
+        
+        rs.push_back(Result(String(key_original, key_original_len), String((char*)e->ptr_val, e->vlen)));
+        free(key_original); key_original = NULL;
+	}
+        
+    done.unblocker().trigger();
+
+    free(key_first_ptr);
+    free(key_last_ptr);
+    Kvsiter_free(kvsiter);
+}
+
+void KVSDBStore::flush() {
+    return;
+}
+
+void KVSDBStore::run_monitor(Server& server) {
+    return;
+}
 
 #if HAVE_LIBLEVELDB
 

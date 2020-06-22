@@ -29,3 +29,7 @@ drivers
 
 *.pem
 aws.json
+
+graph
+tags
+*.dat

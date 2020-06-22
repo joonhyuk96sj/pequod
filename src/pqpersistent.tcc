@@ -10,6 +10,30 @@ LevelDBStore::LevelDBStore(const DBPoolParams& params)
     : params_(params), pool_(nullptr) {
 }
 
+tamed void LevelDBStore::put(Str key, Str value, tamer::event<> done){
+
+}
+
+tamed void LevelDBStore::erase(Str key, tamer::event<> done){
+
+}
+
+tamed void LevelDBStore::get(Str key, tamer::event<String> done){
+
+}
+
+tamed void LevelDBStore::scan(Str first, Str last, tamer::event<ResultSet> done){
+
+}
+
+void LevelDBStore::flush(){
+
+}
+
+void LevelDBStore::run_monitor(Server& server){
+
+}
+
 #endif 
 
 #if HAVE_LIBPQ

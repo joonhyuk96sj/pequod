@@ -9,6 +9,9 @@
 #elif HAVE_LIBPQ_FE_H
 #include <libpq-fe.h>
 #endif
+#if HAVE_LIBLEVELDB
+#include "leveldb/db.h"
+#endif
 
 namespace pq {
 class Server;

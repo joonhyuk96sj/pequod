@@ -4,26 +4,28 @@
 
 namespace pq {
 
-#if HAVE_LIBLEVELDB
+LevelDBStore::LevelDBStore() {
 
-LevelDBStore::LevelDBStore(const DBPoolParams& params)
-    : params_(params), pool_(nullptr) {
+    leveldb::DB::Open(leveldb::Options(), "leveldb_name", &DB_leveldb); // Default DB in levelDB
+    *WriteOptions_leveldb = leveldb::WriteOptions(); // Default Write Options in levelDB
+    *ReadOptions_leveldb = leveldb::ReadOptions(); // Default Read Options in levelDB
 
-    DB_leveldb = leveldb::DB(); // Default DB in levelDB
-    WriteOptions_leveldb = leveldb::WriteOptions(); // Default Write Options in levelDB
-    ReadOptions_leveldb = leveldb::ReadOptions(); // Default Read Options in levelDB
+}
 
+LevelDBStore::~LevelDBStore() {
+    delete DB_leveldb;
+    // FIX ME : Is it ok?
 }
 
 tamed void LevelDBStore::put(Str key, Str value, tamer::event<> done){
     tvars {
         // If it is needed to transform format to Slice,
-        // leveldb::Slice Slice_key = leveldb::Slice(key);
-        // leveldb::Slice Slice_value = leveldb::Slice(value);
+        leveldb::Slice Slice_key = leveldb::Slice(key.s);
+        leveldb::Slice Slice_value = leveldb::Slice(value.s);
     }
 
     twait {
-        DB_leveldb.Put(WriteOptions_leveldb, key, value);
+	DB_leveldb->Put(*WriteOptions_leveldb, Slice_key, Slice_value);
     }
     // TO-DO : Debug, Log
     // TO-DO : Check if no more thing needed
@@ -32,10 +34,11 @@ tamed void LevelDBStore::put(Str key, Str value, tamer::event<> done){
 
 tamed void LevelDBStore::erase(Str key, tamer::event<> done){
     tvars {
+        leveldb::Slice Slice_key = leveldb::Slice(key.s);
     }
 
     twait {
-        DB_leveldb.Delete(WriteOptions_leveldb, key);
+        DB_leveldb->Delete(*WriteOptions_leveldb, Slice_key);
     }
     // TO-DO : Debug, Log
     // TO-DO : Check if no more thing needed
@@ -44,28 +47,29 @@ tamed void LevelDBStore::erase(Str key, tamer::event<> done){
 
 tamed void LevelDBStore::get(Str key, tamer::event<String> done){
     tvars {
-	Str value_buf;
+	std::string value_buf;
+        leveldb::Slice Slice_key = leveldb::Slice(key.s);
     }
 
     twait {
-        DB_leveldb.Get(ReadOptions_leveldb, key, &value_buf);
+        DB_leveldb->Get(*ReadOptions_leveldb, Slice_key, &value_buf);
         // FIX ME : Maybe need to check whether it is found or not
     }
     // TO-DO : Debug, Log
     // TO-DO : Print Value Buf and Free it if needed
-    done();
+    done(value_buf);
 }
 
 tamed void LevelDBStore::scan(Str first, Str last, tamer::event<ResultSet> done){
     tvars {
-        leveldb::Iterator* iter = DB_leveldb.NewIterator(ReadOptions_leveldb);
+        leveldb::Iterator* iter = DB_leveldb->NewIterator(*ReadOptions_leveldb);
         ResultSet* rs = new ResultSet();
     }
 
     twait {
-        for (iter->Seek(first); iter->Valid(); iter->Next()){ // FIX ME : Is it ok?
-            Str key = iter->key().ToString();
-            if (key > last) break; // FIX ME : Is it ok?
+        for (iter->Seek(first.s); iter->Valid(); iter->Next()){ // FIX ME : Is it ok?
+            std::string key = iter->key().ToString();
+            if (key > last.s) break; // FIX ME : Is it ok?
             else{
                 rs->push_back(Result(key, iter->value().ToString()));
             }
@@ -75,7 +79,7 @@ tamed void LevelDBStore::scan(Str first, Str last, tamer::event<ResultSet> done)
     }
     // TO-DO : Debug, Log
     // TO-DO : Check if no more thing needed
-    done();
+    done(*rs);
 }
 
 void LevelDBStore::flush(){
@@ -87,8 +91,6 @@ void LevelDBStore::run_monitor(Server& server){
     // FIX ME : Is it needed to implement?
     return;
 }
-
-#endif 
 
 #if HAVE_LIBPQ
 

@@ -34,11 +34,9 @@ class PersistentStore {
     virtual void run_monitor(Server& server) = 0;
 };
 
-#if HAVE_LIBLEVELDB
-
 class LevelDBStore : public pq::PersistentStore {
   public:
-    LevelDBStore(const DBPoolParams& params);
+    LevelDBStore();
     ~LevelDBStore();
 
     tamed virtual void put(Str key, Str value, tamer::event<> done);
@@ -51,15 +49,11 @@ class LevelDBStore : public pq::PersistentStore {
 
   private:
 
-    leveldb::DB DB_leveldb;
-    leveldb::WriteOptions WriteOptions_leveldb;
-    leveldb::ReadOptions ReadOptions_leveldb;
+    leveldb::DB *DB_leveldb;
+    leveldb::WriteOptions *WriteOptions_leveldb;
+    leveldb::ReadOptions *ReadOptions_leveldb;
 
-    DBPoolParams params_;
-    DBPool* pool_;
 };
-
-#endif
 
 #if HAVE_LIBPQ
 

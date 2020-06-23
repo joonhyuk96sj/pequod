@@ -339,6 +339,9 @@ for x in exps:
                             dbfile.write(dbhost + "\t" + str(dbstartport + s) + "\n");                 
                             print("no dbcompare: Append DB process")
                             dbprocs.append(start_postgres(e, s, 1))
+			elif e['def_db_type'] == 'level_db':
+			    servercmd = servercmd + " --dbname=level_db --level_db"
+			    print("no dbcompare: Use levelDB with index", s)
         
                     part = options.part if options.part else e['def_part']
                     serverargs = " -H=" + hostpath + " -B=" + str(nbacking) + " -P=" + part

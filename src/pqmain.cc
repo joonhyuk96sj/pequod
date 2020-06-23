@@ -84,6 +84,9 @@ static Clp_Option options[] = {
     { "outpath", 0, 3036, Clp_ValString, 0 },
     { "timeout", 0, 3037, Clp_ValInt, 0 },
 
+    // For Additional DB
+    {"level_db", 0, 3040, 0, Clp_Negate}, // 3038, 3039 are for dummydb & kvsdb
+
     // mostly twitter params
     { "shape", 0, 4000, Clp_ValDouble, 0 },
     { "popduration", 0, 4001, Clp_ValInt, 0 },
@@ -123,7 +126,7 @@ static Clp_Option options[] = {
 };
 
 enum { mode_unknown, mode_twitter, mode_twitternew, mode_hn, mode_listen, mode_tests };
-enum { db_unknown, db_postgres };
+enum { db_unknown, db_postgres, db_level_db }; // needed to add db_dummy & db_kvsdb when merge
 
 int main(int argc, char** argv) {
     tamer::initialize();
@@ -239,6 +242,8 @@ int main(int argc, char** argv) {
             db = db_postgres;
         else if (clp->option->long_name == String("monitordb"))
             monitordb = !clp->negated;
+        else if (clp->option->long_name == String("level_db"))
+            db = db_level_db;
 
         else if (clp->option->long_name == String("mem-lo"))
             mem_lo_mb = clp->val.i;
@@ -359,6 +364,12 @@ int main(int argc, char** argv) {
             mandatory_assert(false && "Not configured for PostgreSQL.");
 #endif
         }
+
+        else if (db == db_level_db) {
+            pq::LevelDBStore* level_db = new pq::LevelDBStore();
+            pstore = level_db;
+        }
+
         else
             mandatory_assert(false && "Unknown DB type.");
 

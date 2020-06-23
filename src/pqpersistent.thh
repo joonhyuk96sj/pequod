@@ -51,6 +51,10 @@ class LevelDBStore : public pq::PersistentStore {
 
   private:
 
+    leveldb::DB DB_leveldb;
+    leveldb::WriteOptions WriteOptions_leveldb;
+    leveldb::ReadOptions ReadOptions_leveldb;
+
     DBPoolParams params_;
     DBPool* pool_;
 };

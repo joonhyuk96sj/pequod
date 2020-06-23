@@ -8,30 +8,84 @@ namespace pq {
 
 LevelDBStore::LevelDBStore(const DBPoolParams& params)
     : params_(params), pool_(nullptr) {
+
+    DB_leveldb = leveldb::DB(); // Default DB in levelDB
+    WriteOptions_leveldb = leveldb::WriteOptions(); // Default Write Options in levelDB
+    ReadOptions_leveldb = leveldb::ReadOptions(); // Default Read Options in levelDB
+
 }
 
 tamed void LevelDBStore::put(Str key, Str value, tamer::event<> done){
+    tvars {
+        // If it is needed to transform format to Slice,
+        // leveldb::Slice Slice_key = leveldb::Slice(key);
+        // leveldb::Slice Slice_value = leveldb::Slice(value);
+    }
 
+    twait {
+        DB_leveldb.Put(WriteOptions_leveldb, key, value);
+    }
+    // TO-DO : Debug, Log
+    // TO-DO : Check if no more thing needed
+    done();
 }
 
 tamed void LevelDBStore::erase(Str key, tamer::event<> done){
+    tvars {
+    }
 
+    twait {
+        DB_leveldb.Delete(WriteOptions_leveldb, key);
+    }
+    // TO-DO : Debug, Log
+    // TO-DO : Check if no more thing needed
+    done();
 }
 
 tamed void LevelDBStore::get(Str key, tamer::event<String> done){
+    tvars {
+	Str value_buf;
+    }
 
+    twait {
+        DB_leveldb.Get(ReadOptions_leveldb, key, &value_buf);
+        // FIX ME : Maybe need to check whether it is found or not
+    }
+    // TO-DO : Debug, Log
+    // TO-DO : Print Value Buf and Free it if needed
+    done();
 }
 
 tamed void LevelDBStore::scan(Str first, Str last, tamer::event<ResultSet> done){
+    tvars {
+        leveldb::Iterator* iter = DB_leveldb.NewIterator(ReadOptions_leveldb);
+        ResultSet* rs = new ResultSet();
+    }
 
+    twait {
+        for (iter->Seek(first); iter->Valid(); iter->Next()){ // FIX ME : Is it ok?
+            Str key = iter->key().ToString();
+            if (key > last) break; // FIX ME : Is it ok?
+            else{
+                rs->push_back(Result(key, iter->value().ToString()));
+            }
+        }
+        assert(iter->status().ok());
+        delete iter;
+    }
+    // TO-DO : Debug, Log
+    // TO-DO : Check if no more thing needed
+    done();
 }
 
 void LevelDBStore::flush(){
-
+    // FIX  ME : Is it needed to implement?
+    return;
 }
 
 void LevelDBStore::run_monitor(Server& server){
-
+    // FIX ME : Is it needed to implement?
+    return;
 }
 
 #endif 

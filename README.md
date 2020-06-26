@@ -29,7 +29,12 @@ Pequod builds on Linux and Mac OSX. To build:
     $ NOTE
     $ 1. lib/bloom.hh -> add "cmath" library
     $ 2. GNUmakefile 241 line -> link "lpthread" dynamic library
-
+    $ 4. GNUmakefile 
+        -> add "LEVELDB_PATH=(LEVELDB_PATH)
+        -> Use the variable as below
+            -I${LEVELDB_PATH}/include at INCLUDES
+        -> Link shared library
+            - lleveldb at LIBS
 Pequod requires a C++11 compatible compiler, and the Apple-supplied compiler might
 not be suitable for building on OSX. To use an alternate compiler (such as one 
 installed with `homebrew`), specify the `CXX` variable at configuration time:

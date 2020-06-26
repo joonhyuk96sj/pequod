@@ -63,10 +63,8 @@ tamed void LevelDBStore::get(Str key, tamer::event<String> done){
 tamed void LevelDBStore::scan(Str first, Str last, tamer::event<ResultSet> done){
     tvars {
         leveldb::Iterator* iter = DB_leveldb->NewIterator(*ReadOptions_leveldb);
-        //ResultSet* result = new ResultSet();
         ResultSet* rs = new ResultSet();
     }
-    //ResultSet& rs = done.result();
     twait {
         for (iter->Seek(first.s); iter->Valid(); iter->Next()){ // FIX ME : Is it ok?
             std::string key = iter->key().ToString();
@@ -78,7 +76,6 @@ tamed void LevelDBStore::scan(Str first, Str last, tamer::event<ResultSet> done)
         assert(iter->status().ok());
     }
     done(*rs);
-    //ResultSet& rs = done.result();
     // TO-DO : Debug, Log
     // TO-DO : Check if no more thing needed
     done.unblocker().trigger();

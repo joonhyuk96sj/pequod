@@ -10,7 +10,25 @@
 #include <libpq-fe.h>
 #endif
 
+#define PrintLog 1
+
+#define AGGREGATION_ON 1    // 1 for aggregation, 0 for baseline KVSSD
+#define NUM_USERS 10000     // you need to set # of users for aggregation
+#define Prefix_P 0x80000000 // value for covering KV-SSD iterator limitation
+
+#define HAVE_LIBKVSDB   1
+#define HAVE_LIBLEVELDB 1
+#define HAVE_LIBROCKSDB 1
+
+#if HAVE_LIBKVSDB
 #include "kvs_go_api.h"
+#endif
+#if HAVE_LIBLEVELDB
+#include "leveldb/db.h"
+#endif
+#if HAVE_LIBROCKSDB
+#include "rocksdb/db.h"
+#endif
 
 namespace pq {
 class Server;
@@ -31,14 +49,7 @@ class PersistentStore {
     virtual void run_monitor(Server& server) = 0;
 };
 
-struct kvdata_ {
-    void*  ptr_key;
-    size_t klen;
-    void*  ptr_val;
-    size_t vlen;
-};
-typedef struct kvdata_ kvdata_entry;
-
+#if HAVE_LIBKVSDB
 class KVSDBStore : public pq::PersistentStore {
   public:
     KVSDBStore();
@@ -51,16 +62,16 @@ class KVSDBStore : public pq::PersistentStore {
     virtual void flush();
 
     virtual void run_monitor(Server& server);
-    
+  
     KVSDB kvsdb;
-    void* gm;
+    AGHandler handler;
 };
+#endif
 
 #if HAVE_LIBLEVELDB
-
 class LevelDBStore : public pq::PersistentStore {
   public:
-    LevelDBStore(const DBPoolParams& params);
+    LevelDBStore();
     ~LevelDBStore();
 
     tamed virtual void put(Str key, Str value, tamer::event<> done);
@@ -70,13 +81,27 @@ class LevelDBStore : public pq::PersistentStore {
     virtual void flush();
 
     virtual void run_monitor(Server& server);
-
-  private:
-
-    DBPoolParams params_;
-    DBPool* pool_;
+    
+    leveldb::DB* db;
 };
+#endif
 
+#if HAVE_LIBROCKSDB
+class RocksDBStore : public pq::PersistentStore {
+  public:
+    RocksDBStore();
+    ~RocksDBStore();
+
+    tamed virtual void put(Str key, Str value, tamer::event<> done);
+    tamed virtual void erase(Str key, tamer::event<> done);
+    tamed virtual void get(Str key, tamer::event<String> done);
+    tamed virtual void scan(Str first, Str last, tamer::event<ResultSet> done);
+    virtual void flush();
+
+    virtual void run_monitor(Server& server);
+    
+    rocksdb::DB* db;
+};
 #endif
 
 #if HAVE_LIBPQ

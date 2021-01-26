@@ -18,12 +18,27 @@ MEMTIER_SRCDIR = $(top_srcdir)/memtier_benchmark
 TAMER_COMMIT = 0d9183f844bc732d4e637b3859791cf9783be606
 MEMTIER_COMMIT = d0c75afe71317e643a4f4bc3ed5812ddfad9e5ca
 
-INCLUDES = -include config.h -I$(top_srcdir)/src -I$(top_srcdir)/lib \
-           -I$(top_srcdir)/app -I$(top_srcdir)/tamer -I$(OBJDIR) -I/opt/local/include
-LIBS = `$(TAMER) -l` @BOOST_LIBS@ @MALLOC_LIBS@ @POSTGRES_LIBS@ @HIREDIS_LIB@
+USER_PATH=/home/joonhyuk
 
+KVSDB_PATH=$(USER_PATH)/KVSSD-DB/KVSDB
+KVSDB_LIBS=$(KVSDB_PATH)/kvs_go_api
+KVSDB_INCS=$(KVSDB_PATH)/kvs_go_api
+
+LEVELDB_PATH=$(USER_PATH)/leveldb
+LEVELDB_LIBS=$(LEVELDB_PATH)/build
+LEVELDB_INCS=$(LEVELDB_PATH)/include
+
+ROCKSDB_PATH=$(USER_PATH)/rocksdb
+ROCKSDB_LIBS=$(ROCKSDB_PATH)
+ROCKSDB_INCS=$(ROCKSDB_PATH)/include
+
+OPTS = -lbz2 -lz -lzstd -ldl -lsnappy
+
+INCLUDES = -include config.h -I$(top_srcdir)/src -I$(top_srcdir)/lib \
+           -I$(top_srcdir)/app -I$(top_srcdir)/tamer -I$(OBJDIR) -I/opt/local/include -I$(KVSDB_INCS) -I$(ROCKSDB_INCS) -I$(LEVELDB_INCS) 
+LIBS = `$(TAMER) -l` @BOOST_LIBS@ @MALLOC_LIBS@ @POSTGRES_LIBS@ @HIREDIS_LIB@ -lkvsgoapi -lrocksdb -lleveldb 
 CXXFLAGS += $(INCLUDES) -fno-omit-frame-pointer
-LDFLAGS += -L/usr/local/lib -L/opt/local/lib
+LDFLAGS += -L/usr/local/lib -L/opt/local/lib -L/usr/lib/x86_64-linux-gnu -L$(KVSDB_LIBS) -L$(ROCKSDB_LIBS) -L$(LEVELDB_LIBS) 
 
 @DEFAULT_MALLOC_ASSIGNMENT@
 ifeq ($(shell uname), Darwin)
@@ -238,7 +253,7 @@ MEMTIER_OBJS = $(COMMON_OBJS) \
         $(MEMTIER_OBJDIR)/protocol.o
 
 $(OBJDIR)/pqserver: $(PQMAIN_OBJS) $(LIBTAMER)
-	$(CXXLINK) -o $@ $^ $(LDFLAGS) $(LIBS)
+	$(CXXLINK) -o $@ $^ $(LDFLAGS) $(LIBS) -lpthread
 
 $(OBJDIR)/pqinfo: $(PQINFO_OBJS) $(LIBTAMER)
 	$(CXXLINK) -o $@ $^ $(LDFLAGS) $(LIBS)

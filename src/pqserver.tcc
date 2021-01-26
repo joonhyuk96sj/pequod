@@ -460,7 +460,7 @@ std::pair<bool, Table::iterator> Table::validate_local(Str first, Str last,
                 ++t->nevict_persisted_.reload;
 
                 t->fetch_persisted(pr->ibegin(), pr->iend(), gr.make_event());
-                fetching = true;
+                //fetching = true;//
                 delete pr;
             }
             else if (!pr->pending())
@@ -921,7 +921,7 @@ tamed void Server::validate(Str first, Str last, tamer::event<Table::iterator> d
     done(it.second);
 }
 
-tamed void Server::periodic_eviction() {
+tamed void Server::periodic_eviction() {//
     tvars {
         uint64_t start;
     }

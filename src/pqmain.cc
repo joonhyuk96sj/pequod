@@ -87,6 +87,8 @@ static Clp_Option options[] = {
     // For Additional DB
     { "dummydb", 0, 3038, 0, Clp_Negate },
     { "kvsdb",   0, 3039, 0, Clp_Negate },
+    { "leveldb", 0, 3040, 0, Clp_Negate },
+    { "rocksdb", 0, 3041, 0, Clp_Negate },
 
     // mostly twitter params
     { "shape", 0, 4000, Clp_ValDouble, 0 },
@@ -127,7 +129,7 @@ static Clp_Option options[] = {
 };
 
 enum { mode_unknown, mode_twitter, mode_twitternew, mode_hn, mode_listen, mode_tests };
-enum { db_unknown, db_postgres, db_dummy, db_kvsdb };
+enum { db_unknown, db_postgres, db_dummy, db_kvsdb, db_leveldb, db_rocksdb };
 
 int main(int argc, char** argv) {
     tamer::initialize();
@@ -249,6 +251,10 @@ int main(int argc, char** argv) {
             db = db_dummy;
         else if (clp->option->long_name == String("kvsdb"))
             db = db_kvsdb;
+        else if (clp->option->long_name == String("leveldb"))
+            db = db_leveldb;
+        else if (clp->option->long_name == String("rocksdb"))
+            db = db_rocksdb;
 
         else if (clp->option->long_name == String("mem-lo"))
             mem_lo_mb = clp->val.i;
@@ -370,8 +376,28 @@ int main(int argc, char** argv) {
 #endif
         }
         else if (db == db_kvsdb) {
+#if HAVE_LIBKVSDB
             pq::KVSDBStore* kvsdb = new pq::KVSDBStore();
             pstore = kvsdb;
+#else
+            mandatory_assert(false && "Not configured for KVSDB");
+#endif
+        }
+        else if (db == db_leveldb) {
+#if HAVE_LIBLEVELDB
+            pq::LevelDBStore* leveldb = new pq::LevelDBStore();
+            pstore = leveldb;
+#else
+            mandatory_assert(false && "Not configured for LevelDB");
+#endif
+        }
+        else if (db == db_rocksdb) {
+#if HAVE_LIBROCKSDB
+            pq::RocksDBStore* rocksdb = new pq::RocksDBStore();
+            pstore = rocksdb;
+#else
+            mandatory_assert(false && "Not configured for RocksDB");
+#endif
         }
         else
             mandatory_assert(false && "Unknown DB type.");

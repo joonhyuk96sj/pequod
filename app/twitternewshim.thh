@@ -12,7 +12,7 @@ namespace pq {
 using tamer::event;
 using tamer::preevent;
 
-#define TWEET_LENGTH 5
+#define TWEET_LENGTH 100
 
 template <typename S, typename P>
 class TwitterNewShim {

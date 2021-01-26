@@ -31,6 +31,7 @@
 #include "pqlog.hh"
 #include "pqmemory.hh"
 #include "twitternewshim.hh"
+#include <sys/time.h>
 
 namespace bio = boost::iostreams;
 namespace bfs = boost::filesystem;
@@ -718,7 +719,7 @@ void TwitterNewRunner<S>::populate(tamer::event<> done) {
     tvars {
         boost::mt19937 gen;
         uint32_t s;
-        uint32_t post_end_time = this->currtime_ + this->tp_.popduration();
+        uint32_t post_end_time = this->currtime_;
         std::vector<std::pair<uint32_t, uint32_t>> subs;
         Json j;
         tamer::gather_rendezvous gr;
@@ -748,7 +749,7 @@ void TwitterNewRunner<S>::populate(tamer::event<> done) {
 
     if (tp_.verbose()) { std::cerr << "Building subscription table." << std::endl; }
     for (s = 0; s != subs.size(); ++s) {
-        subscribe(subs[s].first, subs[s].second, currtime_, gr.make_event());
+        subscribe(subs[s].first, subs[s].second, currtime_-this->tp_.popduration(), gr.make_event());
         twait ["twpace"] { server_.pace(make_event()); }
 
         if (tp_.verbose() && s && s % (subs.size() / 10) == 0)
@@ -761,8 +762,8 @@ void TwitterNewRunner<S>::populate(tamer::event<> done) {
     twait { drain(gr, make_event()); }
 
     if (tp_.verbose()) { std::cerr << "Populating twittersphere." << std::endl; }
-    while(currtime_ < post_end_time) {
-        post(tp_.rand_user_post(gen), currtime_,
+    while(currtime_-this->tp_.popduration() < post_end_time) {
+        post(tp_.rand_user_post(gen), currtime_-this->tp_.popduration(),
              String(TwitterNewPopulator::tweet_data, TWEET_LENGTH), gr.make_event());
         ++currtime_;
 
@@ -798,14 +799,15 @@ void TwitterNewRunner<S>::select_active(event<> done) {
         }
 
         active_.push_back(*uit);
-
+        /*
         if (tp_.prevalidate()) {
             prevalidate(tp_.managed_user(*uit), gr.make_event());
             twait{ server_.pace(make_event()); }
         }
+        */
     }
     twait { drain(gr, make_event()); }
-
+    /*
     if (tp_.prevalidate_inactive()) {
         for (u = 0; u != inactive_.size(); ++u) {
             prevalidate(tp_.managed_user(inactive_[u]), gr.make_event());
@@ -813,7 +815,7 @@ void TwitterNewRunner<S>::select_active(event<> done) {
         }
         twait { drain(gr, make_event()); }
     }
-
+    */
     std::random_shuffle(active_.begin(), active_.end(), RandomAdapter(gen));
     if (active_.empty() && tp_.pct_active())
         assert(false && "There were no active users selected.");
@@ -971,6 +973,9 @@ void TwitterNewRunner<S>::run(tamer::event<> done) {
         tamer::rendezvous<> r;
         tamer::event<> running = r.make_event();
         thread rtt_writer_thread;
+        
+        uint32_t op_tmp;
+        struct timeval stop, start, diff;
     }
 
     if (!tp_.execute()) {
@@ -1018,13 +1023,25 @@ void TwitterNewRunner<S>::run(tamer::event<> done) {
     if (tp_.verbose()) { std::cerr << "Starting workload." << std::endl; }
     getrusage(RUSAGE_SELF, &ru[0]);
     gettimeofday(&tv[0], 0);
+    gettimeofday(&start, 0);
 
     while (((tp_.duration()) ? (currtime_ < end_time) : true) &&
            ((postlimit) ? (npost < postlimit) : true) &&
            ((checklimit) ? (ncheck < checklimit) : true)) {
         user = nullptr;
 
-        switch(tp_.rand_op(gen)) {
+        op_tmp = tp_.rand_op(gen);
+        if (currtime_%10000 == 0) {
+            gettimeofday(&stop, 0); timersub(&stop, &start, &diff);
+            std::cout << "[run][loop] op type: "<< op_tmp << "| "\
+                      <<currtime_ << " " << end_time  << " | " \
+                      <<npost     << " " << postlimit << " | " \
+                      <<ncheck    << " " << checklimit<< " ";
+            printf("%ld.%06ld\n", (long int)diff.tv_sec, (long int)diff.tv_usec);            
+            fflush(stdout);
+        }
+        
+        switch(op_tmp) {
             case op_post:
                 post(tp_.rand_user_post(gen), currtime_,
                      String(TwitterNewPopulator::tweet_data, TWEET_LENGTH),
@@ -1182,6 +1199,12 @@ void TwitterNewRunner<S>::run(tamer::event<> done) {
         if (currtime_ % 1024 == 0)
             twait{ tamer::at_asap(make_event()); } 
     }
+    
+    gettimeofday(&stop, 0);
+    timersub(&stop, &start, &diff);
+    printf("Done: %ld.%06ld\n", (long int)diff.tv_sec, (long int)diff.tv_usec);
+    fflush(stdout);
+
     twait { drain(gr, make_event()); }
 
     rtt_log_enabled_ = false;
@@ -1294,7 +1317,7 @@ void TwitterNewRunner<S>::run(tamer::event<> done) {
     stats.set("user_time", to_real(ru[1].ru_utime - ru[0].ru_utime))
          .set("system_time", to_real(ru[1].ru_stime - ru[0].ru_stime))
          .set("wall_time", tdiff);
-    std::cout << stats.unparse(Json::indent_depth(4)) << std::endl;
+    //std::cout << stats.unparse(Json::indent_depth(4)) << std::endl;
 
     running();
     twait(coroutines);
@@ -1303,6 +1326,12 @@ void TwitterNewRunner<S>::run(tamer::event<> done) {
         rtt_writer_thread.join();
 
     done(); 
+
+    gettimeofday(&stop, 0);
+    timersub(&stop, &start, &diff);
+    
+    printf("Completion Time: %ld.%06ld\n", (long int)diff.tv_sec, (long int)diff.tv_usec);
+    fflush(stdout);
 }
 
 
